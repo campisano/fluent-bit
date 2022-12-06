@@ -1,0 +1,44 @@
+version: '3.7'
+
+services:
+  fluent-bit:
+    image: riccardocampisano/public:fluent-bit_1.0.0
+    healthcheck:
+      test: ["CMD", "/debian/usr/sbin/chroot", "/debian", "curl", "--silent", "--fail", "127.0.0.1:80/api/v1/uptime"]
+      start_period: 10s
+      interval: 10s
+      timeout: 3s
+      retries: 2
+    volumes:
+      - '/var/lib/docker/containers:/var/lib/docker/containers:ro'
+      - '/var/tmp:/var/tmp:rw'
+    environment:
+      - 'LOKI_HOST=${PUT_YOUR_CONFIG_HERE}'
+      - 'LOKI_PORT=${PUT_YOUR_CONFIG_HERE}'
+      - 'LOKI_USER=${PUT_YOUR_CONFIG_HERE}'
+      - 'LOKI_PASS=${PUT_YOUR_CONFIG_HERE}'
+
+      - 'LOG_ENABLED=true'
+      - 'LOG_SERVICE={{.Service.Name}}'
+      - 'LOG_TASK={{.Task.Name}}'
+      - 'LOG_IMAGE={{index .Service.Labels "com.docker.stack.image"}}'
+      - 'LOG_HOST={{.Node.Hostname}}'
+    logging:
+      driver: 'json-file'
+      options:
+        env: 'LOG_ENABLED,LOG_SERVICE,LOG_TASK,LOG_IMAGE,LOG_HOST'
+        max-size: '128m'
+        max-file: '1'
+    deploy:
+      mode: global
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      restart_policy:
+        condition: any
+        max_attempts: 2
+        window: 10s
